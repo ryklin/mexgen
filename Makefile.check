@@ -1,0 +1,45 @@
+# MEXGEN MEX-File generator
+#
+# Copyright (C) 2006
+# Center for Perceptual Systems
+# University of Texas at Austin
+#
+# jsp Fri Aug  4 15:31:34 CDT 2006
+
+# Makefile check section
+check:
+	$(EXE) $(CHECKDIR)/syntaxtest.mg
+	$(EXE) $(CHECKDIR)/abc.mg
+	if [ -e abchandlers.cpp ]; then rm abchandlers.cpp; fi
+	$(EXE) -c $(CHECKDIR)/abc.mg
+	test -e abchandlers.cpp
+	if [ -e abcentry.cpp ]; then rm abcentry.cpp; fi
+	$(EXE) -e $(CHECKDIR)/abc.mg
+	test -e abcentry.cpp
+	if [ -e abcclamp.m ]; then rm abcclamp.m; fi
+	if [ -e abcdonothing.m ]; then rm abcdonothing.m; fi
+	$(EXE) -m $(CHECKDIR)/abc.mg
+	test -e abcclamp.m
+	test -e abcdonothing.m
+	if [ -e abchandlers.cpp ]; then rm abchandlers.cpp; fi
+	if [ -e abcentry.cpp ]; then rm abcentry.cpp; fi
+	if [ -e abcclamp.m ]; then rm abcclamp.m; fi
+	if [ -e abcdonothing.m ]; then rm abcdonothing.m; fi
+	$(EXE) $(CHECKDIR)/xyz.mg
+	$(EXE) -c -e -m $(CHECKDIR)/xyz.mg
+	test -e xyzhandlers.cpp
+	test -e xyzentry.cpp
+	test -e xyzinit.m
+	test -e xyzfunction1.m
+	test -e xyzfunction2.m
+	test -e xyzfunction3.m
+	test -e xyzfunction4.m
+	test -e xyzfunction5.m
+	rm xyzhandlers.cpp
+	rm xyzentry.cpp
+	rm xyzinit.m
+	rm xyzfunction1.m
+	rm xyzfunction2.m
+	rm xyzfunction3.m
+	rm xyzfunction4.m
+	rm xyzfunction5.m

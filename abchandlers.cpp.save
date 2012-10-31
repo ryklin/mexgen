@@ -1,0 +1,94 @@
+// Mexgen generated this file on Wed Feb 11 13:06:51 2004
+
+// See the comments at the end of this file for some
+// examples of common MEX-API function calls.
+
+#include "mex.h"
+
+void abcdonothing (int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
+{
+}
+
+void abcclamp (int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
+{
+    // Determine how many dimensions are in input 1
+    int ndims = mxGetNumberOfDimensions (prhs[0]);
+
+    // Get input 1's dimensions
+    const int *dims = mxGetDimensions (prhs[0]);
+
+    // Allocate an array of chars in output 1
+    plhs[0] = mxCreateNumericArray (ndims, dims, mxUINT8_CLASS, mxREAL);
+
+    // Get pointers to source and destination
+    unsigned char *dest = (unsigned char *) mxGetData (plhs[0]);
+    double *src = (double *) mxGetData (prhs[0]);
+
+    // Get the size of the source
+    int size = mxGetNumberOfElements (prhs[0]);
+
+    // Copy input1 to ouput1, clamping as we go.
+    for (int i = 0; i < size; ++i)
+    {
+        // Get a pixel
+        double p = src[i];
+        // Clamp it
+        p = p > 255 ? 255 : p < 0 ? 0 : p;
+        dest[i] = static_cast<unsigned char> (p);
+    }
+}
+
+// Following are some examples of common MEX-API function calls.
+//
+// See http://www.mathworks.com for the full documentation.
+
+// // Print a useful message to the Matlab console
+// mexPrintf ("%s: %d", "Useful message", 42);
+
+// // Print a message and terminate mex-file execution
+// mexErrMsgTxt ("mxErrMsgTxt will not return to caller");
+
+// // Determine how many elements are in the first input array
+// int size = mxGetNumberOfElements (prhs[0]);
+
+// // Get a pointer to the first input array
+// double *in1 = mxGetPr (prhs[0]);
+// // After checking that there are at least 3 values in the array,
+// // get their values
+// double v1 = in1[0];
+// double v2 = in1[1];
+// double v3 = in1[2];
+
+// // A more concise way of getting the values from the input
+// double value = *mxGetPr (prhs[0]);
+
+// // Determine how many dimensions are in input 2
+// int ndims = mxGetNumberOfDimensions (prhs[1]);
+// // Get input 2's dimensions
+// const int *dims = mxGetDimensions (prhs[1]);
+// // Allocate an array of complex numbers in output 1
+// plhs[0] = mxCreateNumericArray (ndims, dims, mxDOUBLE_CLASS, mxCOMPLEX);
+// // Get a pointer to output 1's array
+// double *destr = mxGetPr (plhs[0]);
+// // Put a value into it
+// *destr = sqrt (2);
+
+// // Get a pointer to output 2's real and imaginary arrays
+// double *destr = mxGetPr (plhs[1]);
+// double *desti = mxGetPi (plhs[1]);
+// // Put values in output 2
+// complex<double> c (polar (rho, theta));
+// destr[0] = c.real (); desti[0] = c.imag ();
+
+// // Return some text
+// const char *s = "A useful message";
+// plhs[0] = mxCreateCharMatrixFromStrings (1, &s);
+
+// // Create a scalar and put a 32 bit id into it
+// const int dims[2] = { 1, 1 };
+// plhs[0] = mxCreateNumericArray (2, dims, mxUINT32_CLASS, mxREAL);
+// *mxGetData (plhs[0]) = (unsigned long) 100;
+
+// // Concise way to allocate output 1 that's identical in size and
+// // type as input 1
+// plhs[0] = mxDuplicateArray (prhs[0]);

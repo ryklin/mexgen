@@ -1,0 +1,404 @@
+// Mexgen grammar
+//
+// Copyright (C) 2004 Center for Perceptual Systems
+//
+// jsp Created Tue Feb  3 10:06:38 CST 2004
+
+%{
+    #ifdef _WIN32
+    #pragma warning (disable: 4065) // switch has no case statements
+    #pragma warning (disable: 4786) // identifier was truncated
+    #pragma warning (disable: 4996) // deprecation warnings
+    #endif
+
+    // Include debugging code in parser
+    #define YYDEBUG 1
+
+    #include "mexgen.h"
+    #include <iostream>
+    #include <sstream>
+    #include <vector>
+
+    using namespace MatlabTools;
+    using namespace std;
+
+    // Our one and only mex generator
+    MexGenerator mg;
+
+    // Used for gathering inputs and outputs
+    vector<MexGenerator::MatlabType> lhs, rhs, ehs;
+
+    // Functions in the lexer
+    extern int yylex ();
+
+    // Vars in the lexer
+    extern vector<string> stringargs;
+    extern string id;
+    extern string declcomment;
+    extern char *yytext;
+    extern double fpnum;
+
+    static char static_text[160];
+    void yyerror (const char *e);
+%}
+
+%token TOKENNUMBER
+%token TOKENQSTRING
+
+%token TOKENMINVERSION
+%token TOKENHANDLERS
+%token TOKENENTRYPOINT
+%token TOKENSOURCES
+%token TOKENLIBS
+%token TOKENMEXCOMMAND
+%token TOKENADDPATH
+
+%token TOKENFUNCTION
+%token TOKENID
+%token TOKENDOUBLE
+%token TOKENCOMPLEX
+%token TOKENLOGICAL
+%token TOKENCHAR
+%token TOKENSINGLE
+%token TOKENINT8
+%token TOKENUINT8
+%token TOKENINT16
+%token TOKENUINT16
+%token TOKENINT32
+%token TOKENUINT32
+%token TOKENINT64
+%token TOKENUINT64
+%token TOKENANY
+%token TOKENVARARGIN
+%token TOKENVARARGOUT
+%token TOKENDECLCOMMENT
+%token TOKENENDDECL
+
+%%
+
+mexgenscript: commands
+
+commands: /* empty */
+    | commands command
+    ;
+
+command: decl
+    |
+    TOKENMINVERSION '(' TOKENNUMBER '.' TOKENNUMBER ')'
+    {
+        if (($3 > MEXGEN_MAJOR_VERSION) ||
+                ($3 == MEXGEN_MAJOR_VERSION && $5 > MEXGEN_MINOR_VERSION))
+        {
+            sprintf (static_text, "This file requires version %d.%d or greater of Mexgen.", $3, $5);
+            throw (static_text);
+        }
+    }
+    |
+    TOKENLIBS '(' TOKENQSTRING ')'
+    {
+        mg.SetLibs (stringargs[0]);
+        stringargs.clear ();
+    }
+    |
+    TOKENSOURCES '(' TOKENQSTRING ')'
+    {
+        mg.SetSources (stringargs[0]);
+        stringargs.clear ();
+    }
+    |
+    TOKENMEXCOMMAND '(' TOKENQSTRING ')'
+    {
+        mg.SetMexCommand (stringargs[0]);
+        stringargs.clear ();
+    }
+    |
+    TOKENADDPATH '(' TOKENQSTRING ')'
+    {
+        mg.AddPath (stringargs[0]);
+        stringargs.clear ();
+    }
+    |
+    TOKENHANDLERS '(' TOKENQSTRING ')'
+    {
+        mg.SetHandler (stringargs[0]);
+        stringargs.clear ();
+    }
+    |
+    TOKENENTRYPOINT '(' TOKENQSTRING ')'
+    {
+        mg.SetEntryPoint (stringargs[0]);
+        stringargs.clear ();
+    }
+    ;
+
+decl: function returns id parameters declcomments TOKENENDDECL
+    {
+        // The parameters have been processed
+        rhs = ehs;
+        ehs.clear ();
+        // Append _mexgen to the function name in the entry point file
+        // so that the handler function can have the same name as the
+        // M-File function name.
+        string mexgen_id = id + "_mexgen";
+        // Treat CRLF's correctly under both DOS and UNIX
+        ostringstream oss;
+        for (unsigned n = 0; n < declcomment.size (); ++n)
+        {
+            switch (declcomment[n])
+            {
+                default: oss << declcomment[n];
+                break;
+                case '\r': // ignore CR
+                break;
+                case '\n': // Convert to LF or CRLF as appropriate
+                oss << endl;
+                break;
+            }
+        }
+        mg.AddFunction (mexgen_id, oss.str (), lhs, rhs, id, id);
+    }
+    ;
+
+function: TOKENFUNCTION
+    {
+        // Make returns and parameter lists empty
+        lhs.clear ();
+        rhs.clear ();
+        ehs.clear ();
+        declcomment = "";
+    }
+    ;
+
+returns: // empty
+    | type '='
+    | '[' typelist ']' '='
+    ;
+
+id: TOKENID
+    {
+        // The returns have been processed
+        lhs = ehs;
+        ehs.clear ();
+    }
+    ;
+
+parameters: // empty
+    | '(' typelist ')'
+    ;
+
+typelist: type
+    | type ',' typelist
+    ;
+
+type: TOKENDOUBLE
+    {
+        ehs.push_back (MexGenerator::DOUBLE);
+    }
+    | TOKENCOMPLEX
+    {
+        ehs.push_back (MexGenerator::COMPLEX);
+    }
+    | TOKENLOGICAL
+    {
+        ehs.push_back (MexGenerator::LOGICAL);
+    }
+    | TOKENCHAR
+    {
+        ehs.push_back (MexGenerator::CHAR);
+    }
+    | TOKENSINGLE
+    {
+        ehs.push_back (MexGenerator::SINGLE);
+    }
+    | TOKENINT8
+    {
+        ehs.push_back (MexGenerator::INT8);
+    }
+    | TOKENUINT8
+    {
+        ehs.push_back (MexGenerator::UINT8);
+    }
+    | TOKENINT16
+    {
+        ehs.push_back (MexGenerator::INT16);
+    }
+    | TOKENUINT16
+    {
+        ehs.push_back (MexGenerator::UINT16);
+    }
+    | TOKENINT32
+    {
+        ehs.push_back (MexGenerator::INT32);
+    }
+    | TOKENUINT32
+    {
+        ehs.push_back (MexGenerator::UINT32);
+    }
+    | TOKENINT64
+    {
+        ehs.push_back (MexGenerator::INT64);
+    }
+    | TOKENUINT64
+    {
+        ehs.push_back (MexGenerator::UINT64);
+    }
+    | TOKENANY
+    {
+        ehs.push_back (MexGenerator::ANY);
+    }
+    | TOKENVARARGIN
+    {
+        ehs.push_back (MexGenerator::VARARGIN);
+    }
+    | TOKENVARARGOUT
+    {
+        ehs.push_back (MexGenerator::VARARGOUT);
+    }
+    ;
+
+declcomments: // empty
+    | TOKENDECLCOMMENT declcomments
+    ;
+
+%%
+
+// Called when a parser error is encountered
+void yyerror (const char *e)
+{
+    sprintf (static_text, "%.75s: %.75s", yytext, e);
+    throw static_text;
+}
+
+#ifdef _WIN32
+int isatty (int fd)
+{
+    // If it's stdin, return true.  Otherwise, return false
+    if (fd == 0)
+        return 1;
+    else
+        return 0;
+}
+#endif
+
+extern FILE *yyin;
+extern int line_number;
+extern int yydebug;
+
+bool create_handlers;
+bool create_entrypoint;
+bool build_entrypoint;
+bool create_mfiles;
+
+const char *usage = "mexgen [-h] [-v] [-d] [-c] [-e] [-m] [-x] [input_filename]\n"
+"\n"
+"Options are:\n"
+"\n"
+"-h Display this help output\n"
+"-v Display version\n"
+"-d Show parser debug output\n"
+"-c Create a C++ handler file\n"
+"-e Create a C++ entry point file\n"
+"-m Create M-Files\n"
+"-x Build entry point executable\n"
+"\n"
+"The command 'mexgen <filename>' with no options will do \n"
+"a syntax check on <filename>.\n"
+;
+
+int main (int argc, char **argv)
+{
+    try
+    {
+        // Read standard input by default
+        yyin = stdin;
+
+        // Parse the command line
+        for (int arg = 1; arg < argc; ++arg)
+        {
+            if (argv[arg][0] == '-')
+            {
+                switch (argv[arg][1])
+                {
+                    default:
+                    case 'h':
+                    case 'H':
+                    case '?':
+                    cerr << usage;
+                    return 0;
+                    break;
+                    case 'v':
+                    case 'V':
+                    cerr << "Mexgen version " << MEXGEN_MAJOR_VERSION << "." << MEXGEN_MINOR_VERSION << endl;
+#if defined _MSC_VER
+                    cerr << "Compiled with Microsoft (R) 32-bit C/C++ Optimizing Compiler, version " << _MSC_VER/100;
+#elif defined __GNUC__
+                    cerr << "Compiled with GCC, version " << __GNUC__ << "." <<
+                        __GNUC_MINOR__ << "." << __GNUC_PATCHLEVEL__;
+#else
+                    cerr << "Unknown compiler version" << _MSC_VER;
+#endif
+#ifndef NDEBUG
+                    cerr << " (DEBUG)" << endl;
+#else
+                    cerr << endl;
+#endif
+                    return 0;
+                    break;
+                    case 'd':
+                    case 'D':
+                    yydebug = 1;
+                    break;
+                    case 'c':
+                    case 'C':
+                    create_handlers = true;
+                    break;
+                    case 'e':
+                    case 'E':
+                    create_entrypoint = true;
+                    break;
+                    case 'x':
+                    case 'X':
+                    build_entrypoint = true;
+                    break;
+                    case 'm':
+                    case 'M':
+                    create_mfiles = true;
+                    break;
+                }
+            }
+            else
+            {
+                cout << "Reading input from " << argv[arg] << "..." << endl;
+                yyin = fopen (argv[arg], "r");
+                if (!yyin)
+                {
+                    cerr << "File not found" << endl;
+                    return -1;
+                }
+            }
+        }
+
+        if (yyin == stdin)
+            cerr << "Reading input from stdin..." << endl;
+
+        while (!feof (yyin))
+            yyparse ();
+
+        // Now actually create the files
+        if (create_handlers)
+            mg.CreateHandlerFile (cerr);
+        if (create_entrypoint)
+            mg.CreateEntryPointFile (cerr); // Create the C++ file
+        if (build_entrypoint)
+            mg.BuildTarget (cerr); // Build the MEX-File executable
+        if (create_mfiles)
+            mg.CreateMFiles (cerr);
+
+        return 0;
+    }
+    catch (const char *e)
+    {
+        cerr << "Exception on line " << line_number << ": " << e << endl;
+        return -1;
+    }
+}
